@@ -12,7 +12,7 @@ alternatif yang ditolak dan alasannya. Contoh topik (boleh memilih yang lain):
 
 | No | Keputusan | Alternatif yang ditolak | Alasan |
 | --- | --- | --- | --- |
-| 1 | Kolom tanpa qualifier hanya diperiksa pada scope terdalam. Jika hanya ada satu tabel, kolom di-resolve; jika lebih dari satu tabel, dibuat warning ambigu. | Mencari kolom tanpa qualifier ke seluruh parent scope atau memilih tabel pertama secara otomatis. | Aturan ini sesuai SPESIFIKASI.md bagian 4.3 dan mencegah resolver membuat asumsi yang tidak dapat dibuktikan dari SQL. |
+| 1 | | | |
 | 2 | | | |
 | 3 | | | |
 | 4 | | | |

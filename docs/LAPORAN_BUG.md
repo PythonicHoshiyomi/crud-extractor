@@ -57,7 +57,7 @@ dan menyarankan bentuk test regresi.
 ```markdown
 ## Bug 2: Lookup alias mencari scope luar lebih dahulu
 
-**Ditemukan oleh:** [Nama anggota] · **Diperbaiki oleh:** [Nama anggota]
+**Ditemukan oleh:** Arsel Fahri Khadafi · **Diperbaiki oleh:** Arsel Fahri Khadafi
 
 **Gejala.**  
 Ketika scope dalam dan scope luar memiliki alias yang sama, alias pada scope dalam
@@ -105,7 +105,7 @@ subquery.
 ```markdown
 ## Bug 3: Scope DELETE tidak dibersihkan
 
-**Ditemukan oleh:** [Nama anggota] · **Diperbaiki oleh:** [Nama anggota]
+**Ditemukan oleh:** Arsel Fahri Khadafi · **Diperbaiki oleh:** Arsel Fashri Khadafi
 
 **Gejala.**  
 Alias yang dideklarasikan pada statement `DELETE` masih dapat terlihat ketika resolver

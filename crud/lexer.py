@@ -122,7 +122,12 @@ class Lexer:
             self._add(TokenType.OP, ch, line, col)
             return
         if ch == "<":
-            op = "<=" if self._match("=") else "<"
+            if self._match("="):
+                op = "<="
+            elif self._match(">"):
+                op = "<>"
+            else:
+                op = "<"
             self._add(TokenType.OP, op, line, col)
             return
         if ch == ">":
@@ -136,6 +141,9 @@ class Lexer:
             raise LexError("karakter '!' harus diikuti '='", line, col)
         if ch == "'":
             self._string(line, col)
+            return
+        if ch == '"':
+            self._quoted_identifier(line, col)
             return
         if ch == "?":
             self._add(TokenType.PARAM, "?", line, col)
@@ -162,10 +170,39 @@ class Lexer:
             if self._at_end():
                 raise LexError("string tidak ditutup", line, col)
             ch = self._advance()
+            if ch == "\\":
+                if self._at_end():
+                    raise LexError("karakter escape tidak valid di string", line, col)
+                chars.append(self._advance())
+                continue
             if ch == "'":
+                if self._peek() == "'":
+                    chars.append("'")
+                    self._advance()
+                    continue
                 break
             chars.append(ch)
         self._add(TokenType.STRING, "".join(chars), line, col)
+
+    def _quoted_identifier(self, line: int, col: int) -> None:
+        chars: list[str] = []
+        while True:
+            if self._at_end():
+                raise LexError("identifier tidak ditutup", line, col)
+            ch = self._advance()
+            if ch == "\\":
+                if self._at_end():
+                    raise LexError("karakter escape tidak valid di identifier", line, col)
+                chars.append(self._advance())
+                continue
+            if ch == '"':
+                if self._peek() == '"':
+                    chars.append('"')
+                    self._advance()
+                    continue
+                self._add(TokenType.IDENT, "".join(chars), line, col)
+                return
+            chars.append(ch)
 
     def _number(self, line: int, col: int) -> None:
         start = self.pos - 1

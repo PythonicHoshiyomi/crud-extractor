@@ -149,3 +149,66 @@ def test_regresi_analyzer_subquery_update_selalu_read():
         "level_pelanggan": {"R"},
         "pesanan": {"R"},
     }
+
+def test_escape_character_in_string_literal():
+    # Pastikan karakter escape di dalam string literal tidak memengaruhi parsing.
+    script = parse_sql(
+        r"""
+        SELECT 'It\'s a test', "Column \"Name\""
+        FROM test_table;
+        """
+    )
+    assert script.errors == []
+
+    diagnostics = Resolver().resolve_script(script)
+    assert diagnostics == []
+
+def test_precedency_of_operators():
+    # Pastikan operator AND memiliki precedensi lebih tinggi daripada OR.
+    script = parse_sql(
+        """
+        SELECT id
+        FROM t
+        WHERE a = 1 OR b = 2 AND c = 3;
+        """
+    )
+    assert script.errors == []
+
+    diagnostics = Resolver().resolve_script(script)
+    assert diagnostics == []
+
+    where_clause = script.statements[0].where
+    assert isinstance(where_clause, ast.BinaryOp) and where_clause.op == "OR"
+    assert isinstance(where_clause.right, ast.BinaryOp) and where_clause.right.op == "AND"
+
+def test_left_join_outer_reference():
+    # Pastikan kolom dari tabel luar dapat diakses di ON clause dari LEFT JOIN.
+    script = parse_sql(
+        """
+        SELECT a.id
+        FROM a
+        LEFT JOIN b ON b.a_id = a.id;
+        """
+    )
+    assert script.errors == []
+
+    diagnostics = Resolver().resolve_script(script)
+    assert diagnostics == []
+
+    join_condition = script.statements[0].joins[0].condition
+    assert isinstance(join_condition, ast.BinaryOp) and join_condition.op == "="
+
+def test_error_recovery_after_invalid_token():
+    # Pastikan parser dapat melanjutkan parsing setelah menemukan token yang tidak valid.
+    script = parse_sql(
+        """
+        SELECT id, nama FROM pelanggan;
+        INSERT INTO log (id, pesan) VALUES (1, 'ok');
+        INVALID TOKEN HERE
+        UPDATE produk SET stok = stok - 1 WHERE id = 3;
+        """
+    )
+    assert len(script.errors) == 1  # Hanya satu error untuk token yang tidak valid.
+
+    diagnostics = Resolver().resolve_script(script)
+    assert diagnostics == []  # Resolver harus tetap bekerja pada statement yang valid.

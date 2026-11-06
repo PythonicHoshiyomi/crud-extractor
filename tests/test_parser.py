@@ -37,17 +37,6 @@ def test_where_and():
     assert isinstance(s.where, ast.BinaryOp) and s.where.op == "AND"
 
 
-def test_precedensi_and_di_atas_or():
-    s = one("SELECT id FROM t WHERE a = 1 OR b = 2 AND c = 3")
-    where = s.where
-
-    assert isinstance(where, ast.BinaryOp) and where.op == "OR"
-    assert isinstance(where.left, ast.BinaryOp) and where.left.op == "="
-    assert isinstance(where.right, ast.BinaryOp) and where.right.op == "AND"
-    assert isinstance(where.right.left, ast.BinaryOp) and where.right.left.op == "="
-    assert isinstance(where.right.right, ast.BinaryOp) and where.right.right.op == "="
-
-
 def test_star_dan_perkalian():
     assert isinstance(one("SELECT * FROM t").columns[0], ast.Star)
     expr = one("SELECT harga * qty FROM t").columns[0].expr

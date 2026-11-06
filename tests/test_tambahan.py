@@ -11,6 +11,12 @@ from crud.parser import parse_sql
 from crud.resolver import Resolver
 from crud.analyzer import analyze_statement
 
+def one(sql):
+    script = parse_sql(sql)
+    assert script.errors == [], script.errors
+    assert len(script.statements) == 1
+    return script.statements[0]
+
 # ============================================================
 # Test regresi resolver
 # ============================================================
@@ -150,6 +156,9 @@ def test_regresi_analyzer_subquery_update_selalu_read():
         "pesanan": {"R"},
     }
 
+# ============================================================
+# Test kasus escape character
+# ============================================================
 def test_escape_character_in_string_literal():
     # Pastikan karakter escape di dalam string literal tidak memengaruhi parsing.
     script = parse_sql(
@@ -163,6 +172,9 @@ def test_escape_character_in_string_literal():
     diagnostics = Resolver().resolve_script(script)
     assert diagnostics == []
 
+# ============================================================
+# Test kasus predensi operator
+# ============================================================
 def test_precedency_of_operators():
     # Pastikan operator AND memiliki precedensi lebih tinggi daripada OR.
     script = parse_sql(
@@ -181,6 +193,9 @@ def test_precedency_of_operators():
     assert isinstance(where_clause, ast.BinaryOp) and where_clause.op == "OR"
     assert isinstance(where_clause.right, ast.BinaryOp) and where_clause.right.op == "AND"
 
+# ============================================================
+# Test left join outer reference
+# ============================================================
 def test_left_join_outer_reference():
     # Pastikan kolom dari tabel luar dapat diakses di ON clause dari LEFT JOIN.
     script = parse_sql(
@@ -198,6 +213,9 @@ def test_left_join_outer_reference():
     join_condition = script.statements[0].joins[0].condition
     assert isinstance(join_condition, ast.BinaryOp) and join_condition.op == "="
 
+# ============================================================
+# Test error recovery after invalid token
+# ============================================================
 def test_error_recovery_after_invalid_token():
     # Pastikan parser dapat melanjutkan parsing setelah menemukan token yang tidak valid.
     script = parse_sql(
@@ -212,3 +230,16 @@ def test_error_recovery_after_invalid_token():
 
     diagnostics = Resolver().resolve_script(script)
     assert diagnostics == []  # Resolver harus tetap bekerja pada statement yang valid.
+
+# ============================================================
+# Test precedensi AND di atas OR
+# ============================================================
+def test_precedensi_and_di_atas_or():
+    s = one("SELECT id FROM t WHERE a = 1 OR b = 2 AND c = 3")
+    where = s.where
+
+    assert isinstance(where, ast.BinaryOp) and where.op == "OR"
+    assert isinstance(where.left, ast.BinaryOp) and where.left.op == "="
+    assert isinstance(where.right, ast.BinaryOp) and where.right.op == "AND"
+    assert isinstance(where.right.left, ast.BinaryOp) and where.right.left.op == "="
+    assert isinstance(where.right.right, ast.BinaryOp) and where.right.right.op == "="

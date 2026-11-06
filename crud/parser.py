@@ -88,10 +88,10 @@ class Parser:
         return ast.Script(statements, errors)
 
     def _synchronize(self) -> None:
-        # Panic mode (Crafting Interpreters bab 6): buang token sampai
-        # titik aman, lalu lanjutkan parsing.
-        while not self._at_end():
+        # Panic mode: discard the malformed statement through its terminator.
+        while not self._at_end() and not self._check(T.SEMICOLON):
             self._advance()
+        self._match(T.SEMICOLON)
 
     def _statement(self):
         if self._check_kw("SELECT"):
@@ -176,6 +176,7 @@ class Parser:
             kind = "INNER"
         elif self._match_kw("LEFT"):
             kind = "LEFT"
+            self._match_kw("OUTER")
         self._expect_kw("JOIN")
         source = self._table_ref()
         self._expect_kw("ON")

@@ -222,11 +222,13 @@ def test_error_recovery_after_invalid_token():
         """
         SELECT id, nama FROM pelanggan;
         INSERT INTO log (id, pesan) VALUES (1, 'ok');
-        INVALID TOKEN HERE
+        INVALID TOKEN HERE;
         UPDATE produk SET stok = stok - 1 WHERE id = 3;
         """
     )
     assert len(script.errors) == 1  # Hanya satu error untuk token yang tidak valid.
+    assert len(script.statements) == 3
+    assert isinstance(script.statements[-1], ast.Update)
 
     diagnostics = Resolver().resolve_script(script)
     assert diagnostics == []  # Resolver harus tetap bekerja pada statement yang valid.
@@ -243,3 +245,13 @@ def test_precedensi_and_di_atas_or():
     assert isinstance(where.right, ast.BinaryOp) and where.right.op == "AND"
     assert isinstance(where.right.left, ast.BinaryOp) and where.right.left.op == "="
     assert isinstance(where.right.right, ast.BinaryOp) and where.right.right.op == "="
+
+# ============================================================
+# Test left outer join
+# ============================================================
+def test_left_outer_join():
+    s = one("SELECT a.id FROM a LEFT OUTER JOIN b ON b.a_id = a.id")
+    assert s.joins[0].kind == "LEFT"
+    assert s.joins[0].source.name == "b"
+    assert isinstance(s.joins[0].condition, ast.BinaryOp)
+    assert s.joins[0].condition.op == "="

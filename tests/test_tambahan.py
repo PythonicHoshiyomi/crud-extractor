@@ -9,6 +9,7 @@ Isi dengan:
 from crud import ast_nodes as ast
 from crud.parser import parse_sql
 from crud.resolver import Resolver
+from crud.analyzer import analyze_statement
 
 # ============================================================
 # Test regresi resolver
@@ -120,3 +121,31 @@ def test_tepi_resolver_correlated_subquery():
     assert resolved[("p", "nama")] == "pelanggan"
     assert resolved[("o", "pelanggan_id")] == "pesanan"
     assert resolved[("p", "id")] == "pelanggan"
+    
+# ============================================================
+# Test regresi analyzer
+# ============================================================
+    
+def test_regresi_analyzer_subquery_update_selalu_read():
+    script = parse_sql(
+        """
+        UPDATE pelanggan
+        SET level = (
+            SELECT level_baru
+            FROM level_pelanggan
+        )
+        WHERE id IN (
+            SELECT pelanggan_id
+            FROM pesanan
+        );
+        """
+    )
+    assert script.errors == []
+
+    result = analyze_statement(script.statements[0])
+
+    assert result == {
+        "pelanggan": {"U"},
+        "level_pelanggan": {"R"},
+        "pesanan": {"R"},
+    }

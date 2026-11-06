@@ -141,3 +141,56 @@ AI membantu menemukan hubungan antara urutan pencarian scope, shadowing, dan cor
 subquery.
 
 ---
+
+---
+
+## Bug 4: Subquery dalam UPDATE salah dianggap sebagai operasi U
+
+**Ditemukan oleh:** [Nama anggota] · **Diperbaiki oleh:** [Nama anggota]
+
+**Gejala.**  
+Tabel yang hanya dibaca melalui subquery pada statement `UPDATE` dilaporkan sebagai tabel
+yang mengalami operasi `U`. Menurut SPESIFIKASI.md bagian 5, tabel target `UPDATE` mendapat
+operasi `U`, sedangkan semua tabel yang digunakan oleh subquery mendapat operasi `R`.
+
+**Reproduksi minimal.**
+
+```sql
+UPDATE pelanggan
+SET level = (
+    SELECT level_baru
+    FROM level_pelanggan
+)
+WHERE id IN (
+    SELECT pelanggan_id
+    FROM pesanan
+);
+```
+
+**Akar masalah.** Mengapa kode lama salah? Konsep apa yang dilanggar?
+Pada fungsi analyze_statement() di crud/analyzer.py, ekspresi assignment dan
+WHERE pada UPDATE dikirim ke _collect() dengan operasi "U". Parameter tersebut
+diteruskan ke subquery, sehingga tabel sumber subquery ikut dianggap di-update.
+
+Berdasarkan aturan CRUD lokal pada SPESIFIKASI.md bagian 5, operasi U hanya
+berlaku untuk tabel target UPDATE. Subquery tetap merupakan operasi pembacaan dan harus
+menghasilkan R.
+
+**Perbaikan.** File dan fungsi yang diubah, serta alasannya. Sebutkan juga perbaikan
+alternatif yang kalian pertimbangkan dan alasan tidak memilihnya.
+Operasi yang diteruskan untuk assignment.value dan stmt.where diubah dari "U" menjadi
+"R"
+
+Alternatif yang ditolak adalah mengubah _collect() agar selalu mengubah operasi menjadi
+"R" ketika menemukan subquery. Alternatif tersebut tidak dipilih karena _collect() juga
+digunakan untuk SELECT, INSERT, dan DELETE
+
+**Test regresi.** Nama test di `tests/test_tambahan.py` yang gagal sebelum perbaikan dan lulus
+sesudahnya.
+test_regresi_analyzer_subquery_update_selalu_read
+
+**Peran AI.** Apakah AI membantu menemukan atau memperbaiki bug ini? Bagaimana kalian
+memverifikasinya?
+Konfirmasi kesalahannya pada kesesuain spesifikasi.md
+
+---

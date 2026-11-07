@@ -157,9 +157,10 @@ def test_regresi_analyzer_subquery_update_selalu_read():
     }
 
 # ============================================================
-# Test kasus escape character
+# Test regresi lexer dan parser
 # ============================================================
-def test_escape_character_in_string_literal():
+
+def test_regresi_lexer_escape_character_dalam_literal():
     # Pastikan karakter escape di dalam string literal tidak memengaruhi parsing.
     script = parse_sql(
         r"""
@@ -168,55 +169,23 @@ def test_escape_character_in_string_literal():
         """
     )
     assert script.errors == []
+    select = script.statements[0]
+    assert select.columns[0].expr.value == "It's a test"
+    assert isinstance(select.columns[1].expr, ast.ColumnRef)
+    assert select.columns[1].expr.name == 'column "name"'
 
     diagnostics = Resolver().resolve_script(script)
     assert diagnostics == []
 
-# ============================================================
-# Test kasus predensi operator
-# ============================================================
-def test_precedency_of_operators():
-    # Pastikan operator AND memiliki precedensi lebih tinggi daripada OR.
-    script = parse_sql(
-        """
-        SELECT id
-        FROM t
-        WHERE a = 1 OR b = 2 AND c = 3;
-        """
-    )
-    assert script.errors == []
 
-    diagnostics = Resolver().resolve_script(script)
-    assert diagnostics == []
+def test_regresi_lexer_operator_tidak_sama_dengan():
+    # Operator <> harus menjadi satu operator perbandingan, bukan token < dan >.
+    s = one("SELECT id FROM t WHERE status <> 'rahasia'")
+    assert isinstance(s.where, ast.BinaryOp)
+    assert s.where.op == "<>"
 
-    where_clause = script.statements[0].where
-    assert isinstance(where_clause, ast.BinaryOp) and where_clause.op == "OR"
-    assert isinstance(where_clause.right, ast.BinaryOp) and where_clause.right.op == "AND"
 
-# ============================================================
-# Test left join outer reference
-# ============================================================
-def test_left_join_outer_reference():
-    # Pastikan kolom dari tabel luar dapat diakses di ON clause dari LEFT JOIN.
-    script = parse_sql(
-        """
-        SELECT a.id
-        FROM a
-        LEFT JOIN b ON b.a_id = a.id;
-        """
-    )
-    assert script.errors == []
-
-    diagnostics = Resolver().resolve_script(script)
-    assert diagnostics == []
-
-    join_condition = script.statements[0].joins[0].condition
-    assert isinstance(join_condition, ast.BinaryOp) and join_condition.op == "="
-
-# ============================================================
-# Test error recovery after invalid token
-# ============================================================
-def test_error_recovery_after_invalid_token():
+def test_regresi_parser_error_recovery_sampai_semicolon():
     # Pastikan parser dapat melanjutkan parsing setelah menemukan token yang tidak valid.
     script = parse_sql(
         """
@@ -233,10 +202,8 @@ def test_error_recovery_after_invalid_token():
     diagnostics = Resolver().resolve_script(script)
     assert diagnostics == []  # Resolver harus tetap bekerja pada statement yang valid.
 
-# ============================================================
-# Test precedensi AND di atas OR
-# ============================================================
-def test_precedensi_and_di_atas_or():
+
+def test_regresi_parser_and_memiliki_presedensi_lebih_tinggi_dari_or():
     s = one("SELECT id FROM t WHERE a = 1 OR b = 2 AND c = 3")
     where = s.where
 
@@ -246,12 +213,62 @@ def test_precedensi_and_di_atas_or():
     assert isinstance(where.right.left, ast.BinaryOp) and where.right.left.op == "="
     assert isinstance(where.right.right, ast.BinaryOp) and where.right.right.op == "="
 
-# ============================================================
-# Test left outer join
-# ============================================================
-def test_left_outer_join():
+
+def test_regresi_parser_left_outer_join():
     s = one("SELECT a.id FROM a LEFT OUTER JOIN b ON b.a_id = a.id")
     assert s.joins[0].kind == "LEFT"
     assert s.joins[0].source.name == "b"
     assert isinstance(s.joins[0].condition, ast.BinaryOp)
     assert s.joins[0].condition.op == "="
+
+
+# ============================================================
+# Test kasus tepi
+# ============================================================
+
+def test_tepi_resolver_kolom_tanpa_qualifier_ambigu():
+    # Dua tabel membuat kolom tanpa qualifier ambigu; resolver tidak boleh memilih sembarang tabel.
+    script = parse_sql("SELECT id FROM pelanggan, pesanan;")
+    assert script.errors == []
+
+    diagnostics = Resolver().resolve_script(script)
+    column = script.statements[0].columns[0].expr
+
+    assert isinstance(column, ast.ColumnRef)
+    assert column.resolved is None
+    assert len(diagnostics) == 1
+    assert diagnostics[0].level == "warning"
+    assert "ambigu tanpa skema" in diagnostics[0].message
+
+
+def test_tepi_lexer_string_dengan_quote_ganda():
+    # Quote tunggal ganda di dalam string SQL harus menjadi satu quote pada nilainya.
+    s = one("SELECT 'O''Brien' FROM pelanggan")
+    assert s.columns[0].expr.value == "O'Brien"
+
+
+def test_tepi_lexer_semicolon_di_dalam_string():
+    # Titik koma di dalam string tidak boleh mengakhiri statement lebih awal.
+    script = parse_sql("SELECT 'nilai;lanjut' FROM a; SELECT id FROM b;")
+    assert script.errors == []
+    assert len(script.statements) == 2
+    assert script.statements[0].columns[0].expr.value == "nilai;lanjut"
+    assert script.statements[1].sources[0].name == "b"
+
+
+def test_tepi_resolver_referensi_tabel_kiri_di_on_left_join():
+    # Kondisi ON dapat memakai kolom dari sumber utama maupun sumber LEFT JOIN.
+    script = parse_sql(
+        "SELECT a.id FROM a LEFT JOIN b ON b.a_id = a.id;"
+    )
+    assert script.errors == []
+
+    diagnostics = Resolver().resolve_script(script)
+    condition = script.statements[0].joins[0].condition
+
+    assert diagnostics == []
+    assert isinstance(condition, ast.BinaryOp)
+    assert isinstance(condition.left, ast.ColumnRef)
+    assert isinstance(condition.right, ast.ColumnRef)
+    assert condition.left.resolved == "b"
+    assert condition.right.resolved == "a"

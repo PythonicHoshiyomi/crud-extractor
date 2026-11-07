@@ -227,7 +227,7 @@ di parser berarti parser sudah menerima token yang terpotong atau salah jenis.
 
 **Test regresi.** Nama test di `tests/test_tambahan.py` yang gagal sebelum perbaikan dan lulus
 sesudahnya.
-`test_escape_character_in_string_literal`
+`test_regresi_lexer_escape_character_dalam_literal`
 
 **Peran AI.** Apakah AI membantu menemukan atau memperbaiki bug ini? Bagaimana kalian
 memverifikasinya?
@@ -264,8 +264,8 @@ diubah menjadi `!=`, supaya ejaan operator dari input SQL tetap tercermin pada t
 
 **Test regresi.** Nama test di `tests/test_tambahan.py` yang gagal sebelum perbaikan dan lulus
 sesudahnya.
-`test_matrix_laporan_penjualan` di `tests/test_analyzer.py` menjalankan query contoh
-yang memakai `<>`.
+`test_regresi_lexer_operator_tidak_sama_dengan` menguji `<>` secara langsung; contoh
+laporan penjualan juga menguji operator tersebut melalui `test_matrix_laporan_penjualan`.
 
 **Peran AI.** Apakah AI membantu menemukan atau memperbaiki bug ini? Bagaimana kalian
 memverifikasinya?
@@ -304,14 +304,14 @@ tidak dipilih karena tidak dapat menyatakan tingkatan presedensi yang berbeda.
 
 **Test regresi.** Nama test di `tests/test_tambahan.py` yang gagal sebelum perbaikan dan lulus
 sesudahnya.
-`test_precedensi_and_di_atas_or` di `tests/test_parser.py` memeriksa bentuk AST,
-dan `test_precedency_of_operators` di `tests/test_tambahan.py` juga memeriksa
-pengelompokan operator.
+`test_regresi_parser_and_memiliki_presedensi_lebih_tinggi_dari_or` memeriksa bentuk AST
+di `tests/test_tambahan.py`; `test_precedensi_and_di_atas_or` juga menguji presedensi
+di `tests/test_parser.py`.
 
 **Peran AI.** Apakah AI membantu menemukan atau memperbaiki bug ini? Bagaimana kalian
 memverifikasinya?
 AI membantu mencocokkan implementasi parser dengan presedensi yang tertulis di
 spesifikasi, menerapkan pemisahan aturan grammar, dan menambahkan test AST.
-Suite diverifikasi menggunakan pytest; 37 test lulus.
+Suite diverifikasi menggunakan pytest.
 
 ---
